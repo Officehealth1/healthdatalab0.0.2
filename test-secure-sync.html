@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Health Tracker Secure Sync Test</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f7;
+        }
+        .container {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .section {
+            margin-bottom: 30px;
+        }
+        h1 {
+            color: #1d1d1f;
+            font-size: 24px;
+            margin-bottom: 8px;
+        }
+        h2 {
+            color: #1d1d1f;
+            font-size: 20px;
+            margin-bottom: 16px;
+            border-bottom: 1px solid #e5e5e7;
+            padding-bottom: 8px;
+        }
+        input[type="email"], input[type="text"] {
+            width: 100%;
+            padding: 12px 16px;
+            border: 1px solid #d2d2d7;
+            border-radius: 8px;
+            font-size: 16px;
+            box-sizing: border-box;
+            margin-bottom: 12px;
+        }
+        button {
+            background: #007aff;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            margin-right: 12px;
+            margin-bottom: 12px;
+        }
+        button:hover {
+            background: #0056cc;
+        }
+        button:disabled {
+            background: #d2d2d7;
+            cursor: not-allowed;
+        }
+        .success {
+            background: #30d158;
+            color: white;
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin-bottom: 12px;
+        }
+        .error {
+            background: #ff3b30;
+            color: white;
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin-bottom: 12px;
+        }
+        .info {
+            background: #f2f2f7;
+            padding: 16px;
+            border-radius: 8px;
+            margin-bottom: 12px;
+            border-left: 4px solid #007aff;
+        }
+        .response {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            padding: 16px;
+            margin-top: 12px;
+            font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
+            font-size: 14px;
+            white-space: pre-wrap;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .step {
+            display: flex;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+        .step-number {
+            background: #007aff;
+            color: white;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            font-weight: 600;
+            margin-right: 12px;
+        }
+        .step.completed .step-number {
+            background: #30d158;
+        }
+        .step.error .step-number {
+            background: #ff3b30;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔒 Health Tracker Secure Sync Test</h1>
+        <div class="info">
+            <strong>Testing Suite for Mobile App Integration</strong><br>
+            This page tests the secure sync functionality to ensure users only see their own data.
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="section">
+            <h2>📧 Email Setup</h2>
+            <input type="email" id="testEmail" placeholder="Enter your email address" value="">
+            <button onclick="checkUser()">Check if User Exists</button>
+            <div id="userCheckResult"></div>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="section">
+            <h2>🔐 Authentication Flow Test</h2>
+            <div class="step" id="step1">
+                <div class="step-number">1</div>
+                <div>
+                    <strong>Request Verification Code</strong>
+                    <button onclick="requestCode()">Send Code</button>
+                </div>
+            </div>
+            <div class="step" id="step2">
+                <div class="step-number">2</div>
+                <div>
+                    <strong>Verify Code</strong>
+                    <input type="text" id="verificationCode" placeholder="Enter 6-digit code" maxlength="6">
+                    <button onclick="verifyCode()">Verify</button>
+                </div>
+            </div>
+            <div id="authResult"></div>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="section">
+            <h2>📊 Data Sync Tests</h2>
+            <button onclick="testGetData()">Get User Data</button>
+            <button onclick="testSyncAll()">Sync All Data</button>
+            <button onclick="testGetIds()">Get Submission IDs</button>
+            <div id="syncResults"></div>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="section">
+            <h2>🚨 Security Tests</h2>
+            <div class="info">
+                <strong>These tests verify that users cannot access other users' data</strong>
+            </div>
+            <input type="email" id="otherEmail" placeholder="Enter another email to test security" value="">
+            <button onclick="testSecurityIsolation()">Test Data Isolation</button>
+            <div id="securityResults"></div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = window.location.origin + '/wp-admin/admin-ajax.php';
+        let currentEmail = '';
+
+        function showResult(containerId, message, type = 'info') {
+            const container = document.getElementById(containerId);
+            container.innerHTML = `<div class="${type}">${message}</div>`;
+        }
+
+        function showResponse(containerId, data) {
+            const container = document.getElementById(containerId);
+            const responseDiv = document.createElement('div');
+            responseDiv.className = 'response';
+            responseDiv.textContent = JSON.stringify(data, null, 2);
+            container.appendChild(responseDiv);
+        }
+
+        async function makeRequest(action, data) {
+            const formData = new FormData();
+            formData.append('action', action);
+            
+            for (const [key, value] of Object.entries(data)) {
+                formData.append(key, value);
+            }
+
+            const response = await fetch(API_BASE, {
+                method: 'POST',
+                body: formData
+            });
+
+            return await response.json();
+        }
+
+        async function checkUser() {
+            const email = document.getElementById('testEmail').value;
+            if (!email) {
+                showResult('userCheckResult', 'Please enter an email address', 'error');
+                return;
+            }
+
+            currentEmail = email;
+            
+            try {
+                const result = await makeRequest('mobile_health_check_user', { email });
+                
+                if (result.success) {
+                    const data = result.data;
+                    const message = `
+                        Email: ${data.email}<br>
+                        User Exists: ${data.exists ? 'Yes' : 'No'}<br>
+                        Submissions: ${data.submission_count}<br>
+                        Has Profile: ${data.profile_exists ? 'Yes' : 'No'}<br>
+                        Status: ${data.message}
+                    `;
+                    showResult('userCheckResult', message, 'success');
+                } else {
+                    showResult('userCheckResult', result.data || 'Check failed', 'error');
+                }
+                
+                showResponse('userCheckResult', result);
+            } catch (error) {
+                showResult('userCheckResult', 'Network error: ' + error.message, 'error');
+            }
+        }
+
+        async function requestCode() {
+            if (!currentEmail) {
+                showResult('authResult', 'Please check user first', 'error');
+                return;
+            }
+
+            try {
+                const result = await makeRequest('mobile_health_request_code', { 
+                    email: currentEmail 
+                });
+
+                if (result.success) {
+                    showResult('authResult', 'Verification code sent to ' + currentEmail, 'success');
+                    document.getElementById('step1').classList.add('completed');
+                } else {
+                    showResult('authResult', result.data || 'Failed to send code', 'error');
+                    document.getElementById('step1').classList.add('error');
+                }
+                
+                showResponse('authResult', result);
+            } catch (error) {
+                showResult('authResult', 'Network error: ' + error.message, 'error');
+                document.getElementById('step1').classList.add('error');
+            }
+        }
+
+        async function verifyCode() {
+            const code = document.getElementById('verificationCode').value;
+            if (!code || !currentEmail) {
+                showResult('authResult', 'Please enter verification code', 'error');
+                return;
+            }
+
+            try {
+                const result = await makeRequest('mobile_health_verify_code', { 
+                    email: currentEmail,
+                    code: code
+                });
+
+                if (result.success) {
+                    showResult('authResult', 'Authentication successful!', 'success');
+                    document.getElementById('step2').classList.add('completed');
+                } else {
+                    showResult('authResult', result.data || 'Verification failed', 'error');
+                    document.getElementById('step2').classList.add('error');
+                }
+                
+                showResponse('authResult', result);
+            } catch (error) {
+                showResult('authResult', 'Network error: ' + error.message, 'error');
+                document.getElementById('step2').classList.add('error');
+            }
+        }
+
+        async function testGetData() {
+            if (!currentEmail) {
+                showResult('syncResults', 'Please set up email first', 'error');
+                return;
+            }
+
+            try {
+                const result = await makeRequest('mobile_health_get', { 
+                    email: currentEmail 
+                });
+
+                if (result.success) {
+                    const count = Array.isArray(result.data) ? result.data.length : 0;
+                    showResult('syncResults', `Retrieved ${count} records for ${currentEmail}`, 'success');
+                } else {
+                    showResult('syncResults', result.data || 'Failed to get data', 'error');
+                }
+                
+                showResponse('syncResults', result);
+            } catch (error) {
+                showResult('syncResults', 'Network error: ' + error.message, 'error');
+            }
+        }
+
+        async function testSyncAll() {
+            if (!currentEmail) {
+                showResult('syncResults', 'Please set up email first', 'error');
+                return;
+            }
+
+            try {
+                const result = await makeRequest('mobile_health_sync_all', { 
+                    email: currentEmail 
+                });
+
+                if (result.success) {
+                    const data = result.data;
+                    const message = `
+                        Sync successful for ${data.user.email}<br>
+                        Health Assessments: ${data.summary.health_count}<br>
+                        Longevity Assessments: ${data.summary.longevity_count}<br>
+                        Total: ${data.user.total_assessments}<br>
+                        Latest: ${data.summary.latest_assessment || 'None'}
+                    `;
+                    showResult('syncResults', message, 'success');
+                } else {
+                    showResult('syncResults', result.data || 'Sync failed', 'error');
+                }
+                
+                showResponse('syncResults', result);
+            } catch (error) {
+                showResult('syncResults', 'Network error: ' + error.message, 'error');
+            }
+        }
+
+        async function testGetIds() {
+            if (!currentEmail) {
+                showResult('syncResults', 'Please set up email first', 'error');
+                return;
+            }
+
+            try {
+                const result = await makeRequest('mobile_health_get_ids', { 
+                    email: currentEmail 
+                });
+
+                if (result.success) {
+                    const count = result.data.count || 0;
+                    showResult('syncResults', `Found ${count} submission IDs for ${currentEmail}`, 'success');
+                } else {
+                    showResult('syncResults', result.data || 'Failed to get IDs', 'error');
+                }
+                
+                showResponse('syncResults', result);
+            } catch (error) {
+                showResult('syncResults', 'Network error: ' + error.message, 'error');
+            }
+        }
+
+        async function testSecurityIsolation() {
+            const otherEmail = document.getElementById('otherEmail').value;
+            if (!otherEmail || !currentEmail) {
+                showResult('securityResults', 'Please enter both emails', 'error');
+                return;
+            }
+
+            if (otherEmail === currentEmail) {
+                showResult('securityResults', 'Please use a different email for security test', 'error');
+                return;
+            }
+
+            try {
+                // Try to get data for another user using current user's context
+                const result = await makeRequest('mobile_health_get', { 
+                    email: otherEmail 
+                });
+
+                if (result.success) {
+                    const count = Array.isArray(result.data) ? result.data.length : 0;
+                    if (count === 0) {
+                        showResult('securityResults', 
+                            `✅ SECURITY TEST PASSED: No data returned for ${otherEmail}`, 'success');
+                    } else {
+                        showResult('securityResults', 
+                            `❌ SECURITY ISSUE: Got ${count} records for ${otherEmail}`, 'error');
+                    }
+                } else {
+                    showResult('securityResults', 
+                        `✅ SECURITY TEST PASSED: Access denied for ${otherEmail}`, 'success');
+                }
+                
+                showResponse('securityResults', result);
+            } catch (error) {
+                showResult('securityResults', 'Network error: ' + error.message, 'error');
+            }
+        }
+    </script>
+</body>
+</html> 

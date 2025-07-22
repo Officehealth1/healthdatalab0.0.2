@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Health Tracker Email Debug</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .container { max-width: 600px; }
+        .test-section { background: #f5f5f5; padding: 20px; margin: 20px 0; border-radius: 5px; }
+        .result { background: #e8f5e8; padding: 10px; margin: 10px 0; border-radius: 3px; }
+        .error { background: #ffe8e8; padding: 10px; margin: 10px 0; border-radius: 3px; }
+        button { background: #007AFF; color: white; padding: 10px 20px; border: none; border-radius: 3px; cursor: pointer; }
+        button:hover { background: #0056CC; }
+        input { padding: 10px; margin: 10px 0; width: 300px; border: 1px solid #ddd; border-radius: 3px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Health Tracker Email Debug Tool</h1>
+        
+        <div class="test-section">
+            <h2>Test Email Configuration</h2>
+            <button onclick="testEmailConfig()">Check Email Configuration</button>
+            <div id="configResult"></div>
+        </div>
+        
+        <div class="test-section">
+            <h2>Send Test Email</h2>
+            <input type="email" id="testEmail" placeholder="Enter your email address" value="gemmier21@gmail.com">
+            <br>
+            <button onclick="sendTestEmail()">Send Test Email</button>
+            <div id="testResult"></div>
+        </div>
+        
+        <div class="test-section">
+            <h2>Test Verification Code</h2>
+            <input type="email" id="verifyEmail" placeholder="Enter your email address" value="gemmier21@gmail.com">
+            <br>
+            <button onclick="testVerificationCode()">Send Verification Code</button>
+            <div id="verifyResult"></div>
+        </div>
+        
+        <div class="test-section">
+            <h2>WordPress Email Settings</h2>
+            <p>Check your WordPress email settings:</p>
+            <ul>
+                <li>Go to WordPress Admin → Settings → General</li>
+                <li>Check "Email Address" setting</li>
+                <li>Install an SMTP plugin if emails aren't working</li>
+                <li>Recommended: WP Mail SMTP plugin</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        const AJAX_URL = 'https://healthdatalab.net/wp-admin/admin-ajax.php';
+        
+        function testEmailConfig() {
+            const resultDiv = document.getElementById('configResult');
+            resultDiv.innerHTML = '<p>Testing email configuration...</p>';
+            
+            fetch(AJAX_URL, {
+                method: 'POST',
+                body: new URLSearchParams({
+                    action: 'mobile_health_debug_email',
+                    debug_action: 'config'
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    resultDiv.innerHTML = '<div class="result"><h3>Email Configuration:</h3><pre>' + JSON.stringify(data.data, null, 2) + '</pre></div>';
+                } else {
+                    resultDiv.innerHTML = '<div class="error">Error: ' + data.data + '</div>';
+                }
+            })
+            .catch(error => {
+                resultDiv.innerHTML = '<div class="error">Network error: ' + error.message + '</div>';
+            });
+        }
+        
+        function sendTestEmail() {
+            const email = document.getElementById('testEmail').value;
+            const resultDiv = document.getElementById('testResult');
+            
+            if (!email) {
+                resultDiv.innerHTML = '<div class="error">Please enter an email address</div>';
+                return;
+            }
+            
+            resultDiv.innerHTML = '<p>Sending test email to ' + email + '...</p>';
+            
+            fetch(AJAX_URL, {
+                method: 'POST',
+                body: new URLSearchParams({
+                    action: 'mobile_health_debug_email',
+                    debug_action: 'test',
+                    email: email
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    resultDiv.innerHTML = '<div class="result"><h3>Test Email Sent Successfully!</h3>' +
+                        '<p>Method: ' + (data.data.method || 'Unknown') + '</p>' +
+                        '<p>Test Code: ' + (data.data.test_code || 'N/A') + '</p>' +
+                        '<p>Check your email inbox and spam folder.</p></div>';
+                } else {
+                    resultDiv.innerHTML = '<div class="error"><h3>Test Email Failed</h3>' +
+                        '<p>Error: ' + data.data + '</p>' +
+                        '<p>Check WordPress admin → Settings → General → Email Address</p>' +
+                        '<p>Consider installing WP Mail SMTP plugin</p></div>';
+                }
+            })
+            .catch(error => {
+                resultDiv.innerHTML = '<div class="error">Network error: ' + error.message + '</div>';
+            });
+        }
+        
+        function testVerificationCode() {
+            const email = document.getElementById('verifyEmail').value;
+            const resultDiv = document.getElementById('verifyResult');
+            
+            if (!email) {
+                resultDiv.innerHTML = '<div class="error">Please enter an email address</div>';
+                return;
+            }
+            
+            resultDiv.innerHTML = '<p>Sending verification code to ' + email + '...</p>';
+            
+            fetch(AJAX_URL, {
+                method: 'POST',
+                body: new URLSearchParams({
+                    action: 'mobile_health_debug_email',
+                    debug_action: 'verify',
+                    email: email
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    resultDiv.innerHTML = '<div class="result"><h3>Verification Code Sent!</h3>' +
+                        '<p>Method: ' + (data.data.method || 'Unknown') + '</p>' +
+                        '<p>Check your email for the verification code.</p></div>';
+                } else {
+                    resultDiv.innerHTML = '<div class="error"><h3>Verification Code Failed</h3>' +
+                        '<p>Error: ' + data.data + '</p>' +
+                        '<p>Methods tried: ' + (data.data.methods_tried ? data.data.methods_tried.join(', ') : 'Unknown') + '</p></div>';
+                }
+            })
+            .catch(error => {
+                resultDiv.innerHTML = '<div class="error">Network error: ' + error.message + '</div>';
+            });
+        }
+    </script>
+</body>
+</html>
