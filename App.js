@@ -133,10 +133,13 @@ export default function App() {
             tabBarInactiveTintColor: 'gray',
             headerStyle: {
               backgroundColor: '#007AFF',
+              height: 52,
             },
             headerTintColor: '#fff',
             headerTitleStyle: {
               fontWeight: 'bold',
+              fontSize: 17,
+              marginTop: 2,
             },
           })}
         >
